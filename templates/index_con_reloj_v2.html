@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Ajedrez Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS (oscuro) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #4b5755;
+      color: #f1f1f1;
+    }
+    #board {
+      width: 500px;
+      margin: auto;
+    }
+    .form-select, .form-control {
+      background-color: #1e1e1e;
+      color: #f1f1f1;
+      border: 1px solid #444;
+    }
+    .btn {
+      margin: 2px;
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/chessboard-1.0.0.css">
+</head>
+<body>
+
+  <!-- Barra de navegación -->
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">♟️ Ajedrez Web</span>
+    </div>
+  </nav>
+
+  <div class="container text-center mt-4">
+    <div class="row justify-content-center mb-4">
+      <div class="col-auto">
+
+        <div id="clocks-top" class="mb-2 text-center">
+          <div id="clock-top" class="bg-dark text-white rounded p-2" style="width: 200px; margin: auto;"></div>
+        </div>
+
+        <div id="board"></div>
+
+        <div id="clocks-bottom" class="mt-2 text-center">
+          <div id="clock-bottom" class="bg-dark text-white rounded p-2" style="width: 200px; margin: auto;"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="row justify-content-center mb-3">
+      <div class="col-md-6">
+        <h5>Movimientos</h5>
+        <div id="move-list" class="text-start p-2 bg-dark rounded" style="height: 150px; overflow-y: auto; font-family: monospace;color: white;"></div>
+      </div>
+    </div>
+
+    <div class="row justify-content-center g-2 mb-3">
+      <div class="col-auto">
+        <label class="form-label me-2">Elige tu color:</label>
+        <select id="color-select" class="form-select d-inline w-auto">
+          <option value="white">Blancas</option>
+          <option value="black">Negras</option>
+        </select>
+        <button class="btn btn-primary" onclick="startGame()">Iniciar partida</button>
+      </div>
+
+      <div class="col-auto">
+        <button class="btn btn-secondary" onclick="resetGame()">Reiniciar</button>
+        <button class="btn btn-success" onclick="exportPGN()">Exportar PGN</button>
+      </div>
+
+      <div class="col-auto">
+        <form id="upload-form" enctype="multipart/form-data" class="d-inline">
+          <input type="file" name="pgn_file" accept=".pgn" class="form-control d-inline w-auto">
+          <button type="submit" class="btn btn-info">Cargar PGN</button>
+        </form>
+      </div>
+    </div>
+
+    <div style="width: 100%; background: #000000; height: 20px; border-radius: 5px;">
+      <div id="eval-bar"
+          style="height: 100%; width: 50%; background: rgb(255, 255, 255); border-radius: 5px;">
+      </div>
+    </div>
+    <p id="eval-label" style="color: white; margin-top: 5px;">Evaluación: 50%</p>
+
+    <p id="status" class="mt-3"></p>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="/static/js/chessboard-1.0.0.js"></script>
+
+  <script>
+    const game = new Chess();
+    const board = Chessboard('board', {
+      pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png',
+      draggable: true,
+      position: 'start',
+      onDrop: onDrop
+    });
+
+    function onDrop(source, target) {
+      const move = game.move({ from: source, to: target, promotion: 'q' });
+      if (move === null) return 'snapback';
+      
+      fetch('/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ move: move.from + move.to + (move.promotion || '') })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          switchClocks();
+          game.load(data.fen);
+          board.position(data.fen);
+          updateEvalBar(data.fen);
+          fetchAndShowHistory();
+          if (data.game_over) alert("¡Fin del juego!");
+        } else {
+          alert("Error: " + data.error);
+          game.undo();
+          board.position(game.fen());
+        }
+      });
+
+      return;
+    }
+
+    function startGame() {
+      const selectedColor = document.getElementById("color-select").value;
+      fetch("/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: selectedColor })
+      })
+      .then(res => res.json())
+      .then(data => {
+        game.load(data.fen);
+        board.orientation(selectedColor);
+        board.position(data.fen);
+        updateEvalBar(data.fen);
+        fetchAndShowHistory();
+        if (selectedColor === "black" && !data.motor_played) {
+          motorMoveIfNeeded();
+        }
+      });
+      resetClocks();
+      const color = document.getElementById("color-select").value;
+      renderClocks(color);
+      const humanColor = color;
+      const engineColor = color === "white" ? "black" : "white";
+
+      // Si juegas con blancas, empieza tu reloj; si juegas con negras, espera al motor y luego empieza
+      if (humanColor === "white") {
+        startClocks("white");
+      } else {
+        // Espera a que el motor juegue, luego empieza el reloj de blancas
+        setTimeout(() => {
+          startClocks("black");
+        }, 500); // breve pausa para dejar que el motor mueva
+      }
+    }
+
+    function resetGame() {
+      fetch('/reset', {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: document.getElementById("color-select").value })
+      })
+      .then(res => res.json())
+      .then(data => {
+        game.load(data.fen);
+        board.position(data.fen);
+        updateEvalBar(data.fen);
+        fetchAndShowHistory();
+        resetClocks();
+        const color = document.getElementById("color-select").value;
+        if (color === "white") {
+          startClocks("white");
+        } else {
+          setTimeout(() => {
+            startClocks("black");
+          }, 500);
+        }
+        if (document.getElementById("color-select").value === "black" && !data.motor_played) {
+          motorMoveIfNeeded();
+        }
+      });
+    }
+
+    function exportPGN() {
+      const pgn = game.pgn();
+      const blob = new Blob([pgn], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "partida.pgn";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function motorMoveIfNeeded() {
+      if (game.turn() === 'b') {
+        fetch('/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ move: null })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) {
+            game.load(data.fen);
+            board.position(data.fen);
+            updateEvalBar(data.fen);
+            fetchAndShowHistory();
+            if (data.game_over) alert("¡Fin del juego!");
+          } else {
+            alert("Error: " + data.error);
+          }
+        });
+      }
+    }
+
+     function updateEvalBar(fen) {
+      fetch("/eval", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ fen: fen })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const percent = data.eval_percent;
+        document.getElementById("eval-bar").style.width = percent + "%";
+        document.getElementById("eval-label").textContent = "Evaluación: " + percent.toFixed(1) + "%";
+      })
+      .catch(err => {
+        console.error("Error:", err);
+      });
+    }
+
+    function fetchAndShowHistory() {
+      fetch('/history')
+        .then(res => res.json())
+        .then(data => {
+          const moveListDiv = document.getElementById("move-list");
+          const pgn = data.pgn || "";
+          const lines = pgn.split("\n").filter(line => !line.startsWith("["));
+          moveListDiv.innerHTML = lines.join("<br>");
+          moveListDiv.scrollTop = moveListDiv.scrollHeight;
+        });
+    }
+
+    document.getElementById('upload-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch("/upload_pgn", {
+        method: "POST",
+        body: formData
+      }).then(res => res.json()).then(data => {
+        if (data.ok) {
+          game.load(data.fen);
+          board.position(data.fen);
+          motorMoveIfNeeded();
+          alert("Partida cargada correctamente");
+        } else {
+          alert("Error: " + data.error);
+        }
+      });
+    });
+
+    let whiteTime = 300; // segundos
+    let blackTime = 300;
+    let clockInterval;
+    let playingColor = 'white';
+
+    function updateClocks() {
+      const topColor = document.getElementById("clock-top").getAttribute("data-color");
+      const bottomColor = document.getElementById("clock-bottom").getAttribute("data-color");
+
+      const format = (secs) => {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = (secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      };
+
+      document.getElementById("clock-top").textContent = `${topColor === "white" ? "♔ Blancas" : "♚ Negras"}: ${format(topColor === "white" ? whiteTime : blackTime)}`;
+      document.getElementById("clock-bottom").textContent = `${bottomColor === "white" ? "♔ Blancas" : "♚ Negras"}: ${format(bottomColor === "white" ? whiteTime : blackTime)}`;
+    }
+
+
+    function startClocks(startColor) {
+      clearInterval(clockInterval);
+      playingColor = startColor;
+      clockInterval = setInterval(() => {
+        if (playingColor === 'white') whiteTime--;
+        else blackTime--;
+
+        updateClocks();
+
+        if (whiteTime <= 0 || blackTime <= 0) {
+          clearInterval(clockInterval);
+          alert(`${playingColor === 'white' ? "Blancas" : "Negras"} pierden por tiempo`);
+        }
+      }, 1000);
+    }
+
+    function switchClocks() {
+      playingColor = playingColor === 'white' ? 'black' : 'white';
+    }
+
+    function resetClocks() {
+      whiteTime = 300;
+      blackTime = 300;
+      updateClocks();
+      clearInterval(clockInterval);
+    }
+
+    function renderClocks(humanColor) {
+      const topColor = humanColor === "white" ? "black" : "white";
+      const bottomColor = humanColor;
+
+      const format = (color, time) => {
+        const m = Math.floor(time / 60).toString().padStart(2, '0');
+        const s = (time % 60).toString().padStart(2, '0');
+        const symbol = color === "white" ? "♔" : "♚";
+        const label = color === "white" ? "Blancas" : "Negras";
+        return `${symbol} ${label}: ${m}:${s}`;
+      };
+
+      document.getElementById("clock-top").setAttribute("data-color", topColor);
+      document.getElementById("clock-bottom").setAttribute("data-color", bottomColor);
+
+      document.getElementById("clock-top").textContent = format(topColor, topColor === "white" ? whiteTime : blackTime);
+      document.getElementById("clock-bottom").textContent = format(bottomColor, bottomColor === "white" ? whiteTime : blackTime);
+    }
+
+  </script>
+</body>
+</html>
