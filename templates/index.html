@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <title>Ajedrez Web</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <!-- Bootstrap CSS (oscuro) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <style>
     body {
       background-color: #4b5755;
@@ -43,10 +44,10 @@
 }
 /* Cambia el color de las casillas claras y oscuras */
 .white-1e1d7 {
-  background-color: #eeeeee !important; /* claro */
+  background-color: #eeeed2 !important; /* claro */
 }
 .black-3c85d {
-  background-color: #888888 !important; /* oscuro */
+  background-color: #769656 !important; /* oscuro */
 }
 
   </style>
@@ -97,50 +98,8 @@
 
     <div class="row justify-content-center g-2 mb-3">
       <div class="col-auto">        
-        <select id="color-select" class="form-select d-inline w-auto">
-          <option value="white">Blancas</option>
-          <option value="black">Negras</option>
-        </select>
-          <select id="time-select" class="form-select d-inline w-auto">
-            <option value="180">3 minutos</option>
-            <option value="300" selected>5 minutos</option>
-            <option value="600">10 minutos</option>
-            <option value="900">15 minutos</option>
-            <option value="1800">30 minutos</option>
-          </select>
-      <select id="increment-select" class="form-select d-inline w-auto">
-        <option value="0">0 seg</option>
-        <option value="1">+1 seg</option>
-        <option value="2">+2 seg</option>
-        <option value="3">+3 seg</option>
-        <option value="5">+5 seg</option>
-        <option value="10" selected>+10 seg</option>
-      </select>
-<select id="level-select" class="form-select d-inline w-auto">
-  <option value="0">Nivel 0</option>
-  <option value="1">Nivel 1</option>
-  <option value="2">Nivel 2</option>
-  <option value="3">Nivel 3</option>
-  <option value="4">Nivel 4</option>
-  <option value="5">Nivel 5</option>
-  <option value="6">Nivel 6</option>
-  <option value="7">Nivel 7</option>
-  <option value="8">Nivel 8</option>
-  <option value="9" selected>Nivel 9</option>
-  <option value="10">Nivel 10</option>
-  <option value="11">Nivel 11</option>
-  <option value="12">Nivel 12</option>
-  <option value="13">Nivel 13</option>
-  <option value="14">Nivel 14</option>
-  <option value="15">Nivel 15</option>
-  <option value="16">Nivel 16</option>
-  <option value="17">Nivel 17</option>
-  <option value="18">Nivel 18</option>
-  <option value="19">Nivel 19</option>
-  <option value="20">Nivel 20</option>
-</select>
-
-        <button class="btn btn-primary" onclick="startGame()">Iniciar partida</button>
+        <button class="btn btn-primary" onclick="showConfigModal()">Configurar</button>
+        <!-- <button class="btn btn-primary" onclick="startGame()">Iniciar partida</button> -->
       </div>
 
       <div class="col-auto">
@@ -158,6 +117,76 @@
 
     <p id="status" class="mt-3"></p>
   </div>
+<!-- Modal configuración de partida -->
+<div class="modal fade" id="gameConfigModal" tabindex="-1" aria-labelledby="gameConfigModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="gameConfigModalLabel">Configuración de partida</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label for="modal-color" class="form-label">Color</label>
+          <select id="modal-color" class="form-select">
+            <option value="white">Blancas</option>
+            <option value="black">Negras</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label for="modal-time" class="form-label">Tiempo</label>
+          <select id="modal-time" class="form-select">
+            <option value="180">3 minutos</option>
+            <option value="300" selected>5 minutos</option>
+            <option value="600">10 minutos</option>
+            <option value="900">15 minutos</option>
+            <option value="1800">30 minutos</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label for="modal-increment" class="form-label">Incremento</label>
+          <select id="modal-increment" class="form-select">
+            <option value="0">0 seg</option>
+            <option value="1">+1 seg</option>
+            <option value="2">+2 seg</option>
+            <option value="5">+5 seg</option>
+            <option value="10" selected>+10 seg</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label for="modal-level" class="form-label">Nivel de Stockfish</label>
+          <select id="modal-level" class="form-select">
+		  <option value="0" selected>Nivel 0</option>
+		  <option value="1">Nivel 1</option>
+		  <option value="2">Nivel 2</option>
+		  <option value="3">Nivel 3</option>
+		  <option value="4">Nivel 4</option>
+		  <option value="5">Nivel 5</option>
+		  <option value="6">Nivel 6</option>
+		  <option value="7">Nivel 7</option>
+		  <option value="8">Nivel 8</option>
+		  <option value="9">Nivel 9</option>
+		  <option value="10">Nivel 10</option>
+		  <option value="11">Nivel 11</option>
+		  <option value="12">Nivel 12</option>
+		  <option value="13">Nivel 13</option>
+		  <option value="14">Nivel 14</option>
+		  <option value="15">Nivel 15</option>
+		  <option value="16">Nivel 16</option>
+		  <option value="17">Nivel 17</option>
+		  <option value="18">Nivel 18</option>
+		  <option value="19">Nivel 19</option>
+		  <option value="20">Nivel 20</option>
+	  </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="confirmGameStart()">Iniciar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -227,29 +256,22 @@
 
     function startGame() {
       movimientos = 0;
-      const selectedColor = document.getElementById("color-select").value;
-      humanColor = selectedColor;
-      const timeSelect = document.getElementById("time-select");
-      initialHumanTime = parseInt(timeSelect.value) * 1000;
+      humanColor = selectedOptions.color;
+      initialHumanTime = selectedOptions.time * 1000;
       humanTimeMs = initialHumanTime;
-
-      const incrementSelect = document.getElementById("increment-select");
-      incrementPerMove = parseInt(incrementSelect.value) * 1000;
+      incrementPerMove = selectedOptions.increment * 1000;
 
       document.getElementById("human-timer").textContent = formatTime(humanTimeMs);
-
-      const levelSelect = document.getElementById("level-select");
-      const level = parseInt(levelSelect.value);
 
       fetch("/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ color: selectedColor, level: level })
+        body: JSON.stringify({ color: selectedOptions.color, level: selectedOptions.level })
       })
       .then(res => res.json())
       .then(data => {
         game.load(data.fen);
-        board.orientation(selectedColor);
+        board.orientation(humanColor);
         board.position(data.fen);
         highlightKingInCheck();
         if (game.turn() === humanColor[0]) startHumanTimer();
@@ -260,30 +282,24 @@
 
     function resetGame() {
       movimientos = 0;
-      const color = document.getElementById("color-select").value;
-      humanColor = color;
-      const timeSelect = document.getElementById("time-select");
-      initialHumanTime = parseInt(timeSelect.value) * 1000;
+      humanColor = selectedOptions.color;
+      initialHumanTime = selectedOptions.time * 1000;
       humanTimeMs = initialHumanTime;
-
-      const incrementSelect = document.getElementById("increment-select");
-      incrementPerMove = parseInt(incrementSelect.value) * 1000;
+      incrementPerMove = selectedOptions.increment * 1000;
 
       document.getElementById("human-timer").textContent = formatTime(humanTimeMs);
-
-      const levelSelect = document.getElementById("level-select");
-      const level = parseInt(levelSelect.value);
 
       fetch('/reset', {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ color: color, level: level })
+        body: JSON.stringify({ color: selectedOptions.color, level: selectedOptions.level })
       })
       .then(res => res.json())
       .then(data => {
         game.load(data.fen);
         board.position(data.fen);
         highlightKingInCheck();
+        if (game.turn() === humanColor[0]) startHumanTimer();
         updateEvalBar(data.fen);
         fetchAndShowHistory();
       });
@@ -443,6 +459,30 @@ function updateEvalBar(fen) {
       clearInterval(timerInterval);
     }
 
+let selectedOptions = {
+  color: "white",
+  time: 300,
+  increment: 10,
+  level: 10
+};
+
+function showConfigModal() {
+  const modal = new bootstrap.Modal(document.getElementById('gameConfigModal'));
+  modal.show();
+}
+
+function confirmGameStart() {
+  // Guardar selección
+  selectedOptions.color = document.getElementById("modal-color").value;
+  selectedOptions.time = parseInt(document.getElementById("modal-time").value);
+  selectedOptions.increment = parseInt(document.getElementById("modal-increment").value);
+  selectedOptions.level = parseInt(document.getElementById("modal-level").value);
+
+  startGame();
+  
+  const modal = bootstrap.Modal.getInstance(document.getElementById('gameConfigModal'));
+  modal.hide();
+}
   </script>
 </body>
 </html>
