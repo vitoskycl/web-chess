@@ -64,6 +64,9 @@ def reset():
 
     data = request.get_json(silent=True)
     motor_already_played = False
+    level = data.get("level", 0)
+    level = max(0, min(20, int(level)))
+    engine.configure({"Skill Level": level})
     
     if data and data.get("color") == "black":
         # Si el usuario eligió negras, Stockfish juega primero
